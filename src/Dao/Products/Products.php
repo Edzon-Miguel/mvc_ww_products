@@ -1,78 +1,166 @@
 <?php
+
 namespace Dao\Products;
 
 use Dao\Table;
 
-class Products extends Table {
+class Products extends Table
+{
 
-  public static function getProducts(
-    string $partialName = "",
-    string $status = "",
-    string $orderBy = "",
-    bool $orderDescending = false,
-    int $page = 0,
-    int $itemsPerPage = 10
-  ) {
+public static function getProducts(
+string $partialName="",
+string $status="",
+string $orderBy="",
+bool $orderDescending=false,
+int $page=0,
+int $itemsPerPage=10
+){
 
-    $sqlstr = "SELECT p.productId,
-                      p.productName,
-                      p.productDescription,
-                      p.productPrice,
-                      p.productImgUrl,
-                      p.productStatus,
-                      CASE 
-                        WHEN p.productStatus = 'ACT' THEN 'Activo'
-                        WHEN p.productStatus = 'INA' THEN 'Inactivo'
-                        ELSE 'Sin Asignar'
-                      END as productStatusDsc
-               FROM products p";
+$sqlstr="SELECT
+p.productId,
+p.productName,
+p.productDescription,
+p.productPrice,
+p.productImgUrl,
+p.productStatus,
+CASE
+WHEN p.productStatus='ACT' THEN 'Activo'
+WHEN p.productStatus='INA' THEN 'Inactivo'
+ELSE 'Sin Asignar'
+END as productStatusDsc
+FROM products p";
 
-    $sqlstrCount = "SELECT COUNT(*) as count FROM products p";
+$sqlstrCount="SELECT COUNT(*) as count FROM products p";
 
-    $conditions = [];
-    $params = [];
+$conditions=[];
+$params=[];
 
-    if ($partialName != "") {
-      $conditions[] = "p.productName LIKE :partialName";
-      $params["partialName"] = "%" . $partialName . "%";
-    }
+if($partialName!=""){
+$conditions[]="p.productName LIKE :partialName";
+$params["partialName"]="%".$partialName."%";
+}
 
-    if (!in_array($status, ["ACT", "INA", ""])) {
-      throw new \Exception("Status inválido");
-    }
+if($status!=""){
+$conditions[]="p.productStatus=:status";
+$params["status"]=$status;
+}
 
-    if ($status != "") {
-      $conditions[] = "p.productStatus = :status";
-      $params["status"] = $status;
-    }
+if(count($conditions)>0){
+$sqlstr.=" WHERE ".implode(" AND ",$conditions);
+$sqlstrCount.=" WHERE ".implode(" AND ",$conditions);
+}
 
-    if (count($conditions) > 0) {
-      $sqlstr .= " WHERE " . implode(" AND ", $conditions);
-      $sqlstrCount .= " WHERE " . implode(" AND ", $conditions);
-    }
+if($orderBy!=""){
+$sqlstr.=" ORDER BY ".$orderBy;
 
-    if (!in_array($orderBy, ["productId", "productName", "productPrice", ""])) {
-      throw new \Exception("OrderBy inválido");
-    }
+if($orderDescending){
+$sqlstr.=" DESC";
+}
+}
 
-    if ($orderBy != "") {
-      $sqlstr .= " ORDER BY " . $orderBy;
-      if ($orderDescending) {
-        $sqlstr .= " DESC";
-      }
-    }
+$total=self::obtenerUnRegistro($sqlstrCount,$params)["count"];
 
-    $numeroDeRegistros = self::obtenerUnRegistro($sqlstrCount, $params)["count"];
+$sqlstr.=" LIMIT ".($page*$itemsPerPage).",".$itemsPerPage;
 
-    $sqlstr .= " LIMIT " . ($page * $itemsPerPage) . ", " . $itemsPerPage;
+$registros=self::obtenerRegistros($sqlstr,$params);
 
-    $registros = self::obtenerRegistros($sqlstr, $params);
+return[
+"products"=>$registros,
+"total"=>$total,
+"page"=>$page,
+"itemsPerPage"=>$itemsPerPage
+];
 
-    return [
-      "products" => $registros,
-      "total" => $numeroDeRegistros,
-      "page" => $page,
-      "itemsPerPage" => $itemsPerPage
-    ];
-  }
+}
+
+
+public static function getProductById(int $productId)
+{
+
+$sqlstr="SELECT
+p.productId,
+p.productName,
+p.productDescription,
+p.productPrice,
+p.productImgUrl,
+p.productStatus
+FROM products p
+WHERE p.productId=:productId";
+
+$params=["productId"=>$productId];
+
+return self::obtenerUnRegistro($sqlstr,$params);
+
+}
+
+
+public static function insertProduct(
+string $productName,
+string $productDescription,
+float $productPrice,
+string $productImgUrl,
+string $productStatus
+){
+
+$sqlstr="INSERT INTO products
+(productName,productDescription,productPrice,productImgUrl,productStatus)
+VALUES
+(:productName,:productDescription,:productPrice,:productImgUrl,:productStatus)";
+
+$params=[
+"productName"=>$productName,
+"productDescription"=>$productDescription,
+"productPrice"=>$productPrice,
+"productImgUrl"=>$productImgUrl,
+"productStatus"=>$productStatus
+];
+
+return self::executeNonQuery($sqlstr,$params);
+
+}
+
+
+public static function updateProduct(
+int $productId,
+string $productName,
+string $productDescription,
+float $productPrice,
+string $productImgUrl,
+string $productStatus
+){
+
+$sqlstr="UPDATE products SET
+productName=:productName,
+productDescription=:productDescription,
+productPrice=:productPrice,
+productImgUrl=:productImgUrl,
+productStatus=:productStatus
+WHERE productId=:productId";
+
+$params=[
+"productId"=>$productId,
+"productName"=>$productName,
+"productDescription"=>$productDescription,
+"productPrice"=>$productPrice,
+"productImgUrl"=>$productImgUrl,
+"productStatus"=>$productStatus
+];
+
+return self::executeNonQuery($sqlstr,$params);
+
+}
+
+
+public static function deleteProduct(int $productId)
+{
+
+$sqlstr="DELETE FROM products
+WHERE productId=:productId";
+
+$params=["productId"=>$productId];
+
+return self::executeNonQuery($sqlstr,$params);
+
+}
+
 }
